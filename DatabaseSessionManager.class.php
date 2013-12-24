@@ -258,11 +258,19 @@ class DatabaseSessionManager
 	}// remove
 
 
-	public function deleteSessionFromDatabase($session_id)
+	public function deleteSessionFromDatabase($session_id, $db_in=null)
 	{
 
-		$sql = 'SELECT id FROM '.self::$table_name." WHERE id = ".self::$db->quote(self::$session_id);
-		$dbr = self::$db->query($sql);
+		global $db;
+
+		if(!$db_in)
+		{
+			if(isset(self::$db)) $db_in = self::$db;
+			else if(isset($db)) $db_in = $db;
+		}
+
+		$sql = 'SELECT id FROM '.self::$table_name.' WHERE id = '.(int)$session_id;
+		$dbr = $db_in->query($sql);
 		if(PEAR::isError($dbr))
 		{
 			self::$errors[] = $dbr->getMessage();
@@ -273,7 +281,7 @@ class DatabaseSessionManager
 		if($session_id==$found_id)
 		{
 			$sql = 'DELETE FROM '.self::$table_name.' WHERE id = '.(int)$session_id;
-			$dbr = self::$db->query($sql);
+			$dbr = $db_in->query($sql);
 			if(PEAR::isError($dbr))
 			{
 				self::$errors[] = $dbr->getMessage().' - SQL: '.$sql;

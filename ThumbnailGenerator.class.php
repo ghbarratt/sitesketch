@@ -473,7 +473,12 @@
 			//echo '</pre>';
 
 		}// getContent
-
+		
+		public function getImages()
+		{
+			if(!isset($this->images) || !is_array($this->images)) $this->resolveImages();
+			return $this->images;
+		}// getImages
 
 	}// class Thumbnailer
 

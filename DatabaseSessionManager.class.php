@@ -32,7 +32,8 @@ class DatabaseSessionManager
 		if(self::$sync_real_session) $result = session_start();
 		else $result = true;
 	
-		if(!self::$session_code && self::$sync_real_session) self::$session_code = session_id();
+		if($session_code) self::setSessionCode($session_code);
+		else if(!self::$session_code && self::$sync_real_session) self::$session_code = session_id();
 		else if(!self::$session_code && isset($_COOKIE['PHPSESSID'])) self::$session_code = $_COOKIE['PHPSESSID'];
 
 		if(!self::$session_code) 
@@ -46,9 +47,28 @@ class DatabaseSessionManager
 	}// construct
 
 
-	public function getSessionCode()
+	public static function getSessionCode($session_id=null, $db_in=null)
 	{
-		return self::$session_code;
+		
+		global $db;
+
+		if(!$db_in)
+		{
+			if(isset(self::$db)) $db_in = self::$db;
+			else if(isset($db)) $db_in = $db;
+		}
+		if(!empty($session_id) && is_numeric($session_id))
+		{
+			$sql = "SELECT code FROM ".self::$table_name." WHERE id = ".(int)$session_id;
+			$dbr = $db_in->query($sql);
+			if(PEAR::isError($dbr))
+			{
+				self::$errors[] = $dbr->getMessage();
+				return false;
+			}
+			else return $dbr->fetchOne();
+		}
+		else return self::$session_code;
 	}// getSessionCode
 
 
@@ -236,6 +256,42 @@ class DatabaseSessionManager
 		return false;
 
 	}// remove
+
+
+	public function deleteSessionFromDatabase($session_id, $db_in=null)
+	{
+
+		global $db;
+
+		if(!$db_in)
+		{
+			if(isset(self::$db)) $db_in = self::$db;
+			else if(isset($db)) $db_in = $db;
+		}
+
+		$sql = 'SELECT id FROM '.self::$table_name.' WHERE id = '.(int)$session_id;
+		$dbr = $db_in->query($sql);
+		if(PEAR::isError($dbr))
+		{
+			self::$errors[] = $dbr->getMessage();
+			return false;
+		}
+		else $found_id = $dbr->fetchOne();	
+
+		if($session_id==$found_id)
+		{
+			$sql = 'DELETE FROM '.self::$table_name.' WHERE id = '.(int)$session_id;
+			$dbr = $db_in->query($sql);
+			if(PEAR::isError($dbr))
+			{
+				self::$errors[] = $dbr->getMessage().' - SQL: '.$sql;
+				return false;
+			}
+			else return true;	
+		}
+		return false;
+
+	}// deleteSessionFromDatabase
 
 
 	public function set($key, $value, $write_to_database=true)

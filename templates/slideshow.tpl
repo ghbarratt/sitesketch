@@ -18,7 +18,7 @@
 	var slideshow_~alias~_images = new Array(~image_count~);
 	~images{
 	slideshow_~slideshow_alias~_images[~index~] = new SlideshowImage();
-	slideshow_~slideshow_alias~_images[~index~].src = '~web_path~/viewport/~eval(addslashes("~filename~"))eval~';
+	slideshow_~slideshow_alias~_images[~index~].src = '~web_path~/~viewport_size~/~eval(addslashes("~filename~"))eval~';
 	slideshow_~slideshow_alias~_images[~index~].original = '~web_path~/~eval(addslashes("~filename~"))eval~';
 	slideshow_~slideshow_alias~_images[~index~].width = ~width~;
 	slideshow_~slideshow_alias~_images[~index~].height = ~height~;

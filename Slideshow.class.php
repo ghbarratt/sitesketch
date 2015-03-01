@@ -12,7 +12,9 @@
 	{
 
 		private static $default_slideshows_directory; // = '/images/slideshows/';
-		
+	
+		public $viewport_size = 'vewport';
+	
 		public $slideshow_web_path;
 
 		public function __construct($slideshow_web_path, $thumbnail_sizes=false, $alias=false)
@@ -29,6 +31,11 @@
 		}// constructor
 
 
+		public function setViewportSize($viewport_size_in) 
+		{
+			$this->viewport_size = $viewport_size_in;
+		}
+
 		public function getImageCount()
 		{
 			if(!$this->images) $this->createThumbnails();
@@ -36,15 +43,17 @@
 		}// getImageCount
 
 
-		public function getViewportWidth()
+		public function getViewportWidth($size=null)
 		{
-			return $this->thumbnail_sizes['viewport']['width'];
+			if(empty($size)) $size = $this->viewport_size;
+			return $this->thumbnail_sizes[$size]['width'];
 		}// getViewportWidth
 
 
-		public function getViewportHeight()
+		public function getViewportHeight($size=null)
 		{
-			return $this->thumbnail_sizes['viewport']['height'];
+			if(empty($size)) $size = $this->viewport_size;
+			return $this->thumbnail_sizes[$size]['height'];
 		}// getViewportHeight
 
 
@@ -72,11 +81,12 @@
 				'images'                     => $this->images,
  			 	'image_count'                => count($this->images),
 				'thumbnail_sizes'            => $this->thumbnail_sizes,
-				'viewport_width'             => $this->thumbnail_sizes['viewport']['width'],
-				'viewport_height'            => $this->thumbnail_sizes['viewport']['height']
+				'viewport_size'              => $this->viewport_size,
+				'viewport_width'             => $this->thumbnail_sizes[$this->viewport_size]['width'],
+				'viewport_height'            => $this->thumbnail_sizes[$this->viewport_size]['height']
 				//'initial_image_alt' => $this->images[0]['alt'],
 			);
-			if(isset($this->images[0]))	$replacements['initial_image_web_filepath'] = $this->images[0]['thumbnail_web_filepaths']['viewport'];
+			if(isset($this->images[0]))	$replacements['initial_image_web_filepath'] = $this->images[0]['thumbnail_web_filepaths'][$this->viewport_size];
 
 			if($additional_replacements && is_array($additional_replacements)) $replacements = array_merge($replacements, $additional_replacements); 
 

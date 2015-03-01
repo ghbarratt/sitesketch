@@ -126,8 +126,9 @@
 				if(!empty($site_data['stylesheet'])) $this->stylesheets[] = array('href'=>$site_data['stylesheet']);
 			}
 
-			if(!$this->stylesheets)
-			{
+			// TODO Possibly needs fix??
+			//if(!$this->stylesheets)
+			//{
 				$document_root_path = $_SERVER['DOCUMENT_ROOT'];
 				$attempt_to_add_css = array('/css/global.css', '/css/primary.css');
 				if(isset($this->site_alias) && $this->site_alias) $attempt_to_add_css[] = '/css/'.$this->site_alias.'.css';
@@ -138,7 +139,7 @@
 				{
 					if(is_file($document_root_path.$ac)) $this->stylesheets[] = array('href'=>$ac);
 				}
-			}
+			//}
 
 			$this->header_content = false;
 			$this->footer_content = false;

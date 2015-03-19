@@ -1,4 +1,4 @@
-<?		
+<?php	
 
 	// Slideshow
 	// by Glen H. Barratt

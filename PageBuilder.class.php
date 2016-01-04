@@ -170,7 +170,7 @@
 			if(!$this->hasStylesheet('/css/'.$this->type.'.css')) 
 			{
 				if(!is_array($this->stylesheets)) $this->stylesheets = array();
-				$this->stylesheets = array_merge($this->stylesheets, array(0=>array('href'=>'/css/'.$this->type.'.css')));
+				//$this->stylesheets = array_merge($this->stylesheets, array(0=>array('href'=>'/css/'.$this->type.'.css')));
 			}
 
 		}// setType
@@ -232,7 +232,8 @@
 
 			if(!$content_type) $content_type = $this->getContentType();
 
-			$metas = array();
+			if(count($this->metas)) $metas = $this->metas;
+			else $metas = array();
 			if($content_type) $metas[] = array('attribute'=>'http-equiv', 'attribute_value'=>'content-type', 'content'=>$content_type);
 			
 			if($description) $metas[] = array('attribute'=>'name', 'attribute_value'=>'description', 'content'=>$description);
@@ -253,7 +254,13 @@
 		}// getMetas
 
 
-		private function getHeadExtra($alias=false)
+		public function addMeta($meta)
+		{
+			$this->metas[] = $meta;
+		}
+
+
+		public function getHeadExtra($alias=false)
 		{
 			
 			if(!$alias) $alias = $this->getAlias();

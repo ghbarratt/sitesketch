@@ -66,7 +66,6 @@ class UserManager
 		if(!empty($config['password_column'])) $this->password_column = $config['password_column'];
 		if(!empty($config['user_role_id_column'])) $this->user_role_id_column = $config['user_role_id_column'];
 
-
 	}// constructor
 
 

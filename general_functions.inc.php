@@ -53,11 +53,39 @@ function forceHTTPS()
 {
 	if(isset($_SERVER))
 	{
-		if(!isset($_SERVER['HTTPS']) || !$_SERVER['HTTPS'])
+		if(!isset($_SERVER['HTTPS']) || strtolower($_SERVER['HTTPS'])!='on')
 		{
 			header('Location: https://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);
 			exit;
 		}
 	}
 }// forceHTTPS
+
+
+function getPageAliasUsingURL()
+{
+	$url = $_SERVER['SCRIPT_NAME'] ? $_SERVER['SCRIPT_NAME'] : $_SERVER['PHP_SELF'];	
+	$alias = str_replace('index.php', '', $url);
+	// Remove first /
+	while(substr($alias, 0, 1)=='/') $alias = substr($alias, 1);
+	// Remove lasst /
+	while(substr($alias, strlen($alias)-1, 1)=='/') $alias = substr($alias, 0, strlen($alias)-1);
+	// Just take what comes after the LAST /
+	if(strpos($alias, '/')!==false) $alias = substr($alias, strrpos($alias, '/')+1);
+	return $alias;
+}// getPageAliasUsingURL
+
+
+function isEmailValid($email) 
+{
+	if(preg_match('/^([a-zA-Z0-9])+([a-zA-Z0-9\._-]).*@([a-zA-Z0-9_-])+([a-zA-Z0-9\._-]+)+$/', $email))
+	{
+		list($username, $domain) = split('@', $email);
+		if(!checkdnsrr($domain,'MX')) return false;
+	}
+	return true;
+}// isEmailValid
+
+
+
 

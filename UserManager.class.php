@@ -54,10 +54,10 @@ class UserManager
 			die('You must have a database connection established in order to use the User Manager.');
 		}
 
-		if(!$users_table) $this->users_table = 'users'; // User table default
+		if(empty($users_table)) $this->users_table = 'users'; // User table default
 		else $this->users_table = $users_table;
 
-		if(!$identifier_field) $this->identifier_field = 'id'; // User table unique identifier default
+		if(empty($identifier_field)) $this->identifier_field = 'id'; // User table unique identifier default
 		else $this->identifier_field = $identifier_field;
 
 	}// constructor

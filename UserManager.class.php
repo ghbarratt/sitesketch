@@ -22,13 +22,17 @@ class UserManager
 	protected $salt_length = 8;
 	protected $salt_field = 'salt';
 
-	protected $users_table;	
-	protected $identifier_field = 'id';	
-	protected $password_field = 'password_hash';	
-	protected $username_field = 'username';	
+	protected $users_table = 'users';	
+	protected $user_roles_table = 'user_roles';	
+	protected $id_column = 'id';	
+	protected $password_column = 'password_hash';	
+	protected $user_role_id_column = 'user_role_id';	
+	protected $email_column = 'email';	
 	protected $session_key = 'user_id';
 
 	protected $errors = array();
+	protected $messages = array();
+	protected $warnings = array();
 
 	protected $db;
 	protected $cb;
@@ -54,11 +58,14 @@ class UserManager
 			die('You must have a database connection established in order to use the User Manager.');
 		}
 
-		if(!$users_table) $this->users_table = 'users'; // User table default
-		else $this->users_table = $users_table;
+		if(!empty($config['users_table'])) $this->users_table = $config['users_table'];
+		if(!empty($config['user_roles_table'])) $this->user_roles_table = $config['user_roles_table'];
+		
+		if(!empty($config['id_column'])) $this->id_column = $config['id_column'];
+		if(!empty($config['email_column'])) $this->email_column = $config['email_column'];
+		if(!empty($config['password_column'])) $this->password_column = $config['password_column'];
+		if(!empty($config['user_role_id_column'])) $this->user_role_id_column = $config['user_role_id_column'];
 
-		if(!$identifier_field) $this->identifier_field = 'id'; // User table unique identifier default
-		else $this->identifier_field = $identifier_field;
 
 	}// constructor
 
@@ -67,6 +74,36 @@ class UserManager
 	{
 		return array_merge($this->getDefaultReplacements(), $this->replacements);
 	}// getReplacements
+
+
+	public function getMessages()
+	{
+		return $this->messages;
+	}
+
+
+	public function getErrors()
+	{
+		return $this->errors;
+	}
+
+
+	public function getWarnings()
+	{
+		return $this->warnings;
+	}
+
+
+	public function addError($error)
+	{
+		$this->errors[] = $error;
+	}
+
+
+	public function addWarning($warning)
+	{
+		$this->warnings[] = $warning;
+	}
 
 
 	public function addReplacements($replacements)
@@ -98,29 +135,37 @@ class UserManager
 			INSERT INTO ".$this->users_table."
 			(".implode(',', array_keys($user_data)).")
 			VALUES
-			(".implode(',', $user_data).")
+			('".implode("','", $user_data)."')
 		";
 		//echo 'DEBUG sql <pre>'.$sql.'</pre>';
 
-		$count = $this->dbh->exec($sql);
-		
-		if(!$count) 
+		try
 		{
-			$this->errors[] = 'There was an SQL error trying to insert user: '.$result->getMessage();
+			$count = $this->dbh->exec($sql);
 		}
+		catch (PDOException $e) 
+		{
+			$this->errors[] = 'There was an SQL error trying to insert user: '.$e->getMessage()."\n DEBUG sql: ".$sql;
+		}
+
+		if(!empty($count)) return $this->dbh->lastInsertId();
+
+		return false;
 		
 	}// insertUser
 
 
 	public function addUser($user_data)
 	{
-		insertUser($user_data);
+		return $this->createUser($user_data);
 	}// alias for insertUser
 
 
 	public function createUser($user_data)
 	{
-		insertUser($user_data);
+		$user_id = $this->insertUser($user_data);
+		if($user_id) $this->messages[] = 'Successfully created user account for '.($user_data['name'] ?: $user_data['email']);
+		return $user_id;
 	}// alias for insertUser
 
 
@@ -146,7 +191,7 @@ class UserManager
 	}
 
 
-	public function renewSalt($username=false, $salt=false)
+	public function renewSalt($email=false, $salt=false)
 	{
 		//echo 'DEBUG Renew salt';
 
@@ -184,8 +229,31 @@ class UserManager
 		//echo '</pre>';
 	}
 
+	public function isUserEmail($email)
+	{
+		$sql =
+		'
+			SELECT '.$this->id_column.'
+			FROM '.$this->users_table.'
+			WHERE '.$this->email_column.' = ?
+		';
 
-	public function isUserValid($username, $password, $options)
+		$sth = $this->dbh->prepare($sql);
+		try
+		{
+			$sth->execute(array($email));
+			return $sth->fetchColumn();
+		}
+		catch (PDOException $e)
+		{
+			$this->errors[] = 'There was an SQL error '.$e->getMessage().' SQL: '.$sql;
+		}
+		return false;
+		
+	}
+
+
+	public function isUserValid($email, $password, $options)
 	{
 		if($this->hashing_passwords)
 		{
@@ -195,15 +263,15 @@ class UserManager
 
 		$sql =
 		'
-			SELECT '.$this->password_field.', '.$this->identifier_field.'
+			SELECT '.$this->password_column.', '.$this->id_column.'
 			FROM '.$this->users_table."
-			WHERE ".$this->username_field." = ?
+			WHERE ".$this->email_column." = ?
 		";
 
 		$sth = $this->dbh->prepare($sql);
 		try
 		{
-			$sth->execute(array($username));
+			$sth->execute(array($email));
 			$user_data = $sth->fetch();
 		}
 		catch (PDOException $e)
@@ -216,7 +284,7 @@ class UserManager
 
 		if($password == hash($this->hash_method, $user_data['password_hash'].$this->getSalt()))
 		{
-			$user_id = $user_data[$this->identifier_field];
+			$user_id = $user_data[$this->id_column];
 		}
 		else
 		{
@@ -231,13 +299,19 @@ class UserManager
 
 
 
-	public function login($username, $password, $options)
+	public function logIn($email, $password=null, $options=null)
 	{
-
-		if($user_id = $this->isUserValid($username, $password, $options))
+		if(!empty($options['skip_authentication']))
+		{
+			$user_id = $this->isUserEmail($email);
+		}
+		else $user_id = $this->isUserValid($email, $password, $options);
+		
+		if($user_id)
 		{
 			$_SESSION[$this->session_key] = $user_id;			
 			$this->user_id = $user_id;
+			$this->messages[] = 'Successfully logged in as user with email '.$email;
 			return true;
 		}
 		else
@@ -246,7 +320,7 @@ class UserManager
 		}
 		return false;
 
-	}// login
+	}// logIn
 
 	
 	public function getUserID()
@@ -256,12 +330,53 @@ class UserManager
 	}
 
 
-	public function whoIsLoggedIn()
+	public function getUserData($user_id=null)
+	{
+		if(empty($user_id)) $user_id = $this->getUserID();
+
+		$sql =
+		'
+			SELECT u.*, ur.name AS role_name
+			FROM 
+				'.$this->users_table.' u
+				LEFT JOIN '.$this->user_roles_table.' ur ON ur.'.$this->id_column.' = '.$this->user_role_id_column.'
+			WHERE u.'.$this->id_column.' = ?
+		';
+
+		$sth = $this->dbh->prepare($sql);
+		try
+		{
+			$sth->execute(array($user_id));
+			return $sth->fetch();
+		}
+		catch (PDOException $e)
+		{
+			//$this->errors[] = i
+			echo 'There was an SQL error '.$e->getMessage().' SQL: '.$sql;
+		}
+		return false;
+	}
+
+
+	public function getLoggedInUserData()
+	{
+		$user_id = $this->getLoggedInUserID();
+		return $this->getUserData($user_id);
+	}
+
+
+	public function getLoggedInUserID()
 	{
 		if(!isset($_SESSION)) session_start();
 		if(isset($_SESSION[$this->session_key])) return $_SESSION[$this->session_key];
 		else return false;
-	}// whoIsLoggedIn
+	}
+
+
+	public function whoIsLoggedIn()
+	{
+		return $this->getLoggedInUserID();
+	}
 
 
 	public function bootAnonymous($url=false)

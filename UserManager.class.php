@@ -321,6 +321,21 @@ class UserManager
 
 	}// logIn
 
+
+	public function logOut($options=null)
+	{
+		//if(!empty($options['skip_authentication']))
+		//{
+			//$user_id = $this->isUserEmail($email);
+		//}
+		//else $user_id = $this->isUserValid($email, $password, $options);
+		
+		unset($_SESSION[$this->session_key]);
+
+	}// logIn
+
+
+
 	
 	public function getUserID()
 	{

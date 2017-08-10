@@ -236,8 +236,10 @@
 						$web_filepath = $working_web_path.'/'.$filename;
 						//echo 'DEBUG Trying '.$web_filepath."<br/>\n";
 						$temp_image = array();
-						$temp_image_data = getimagesize($this->webroot_path.$web_filepath, $temp_extended_image_data);
-	
+						if(is_file($this->webroot_path.$web_filepath))
+						{
+							$temp_image_data = @getimagesize($this->webroot_path.$web_filepath, $temp_extended_image_data);
+						}
 						$new_image_data = array();
 						$new_image_data['web_path'] = $working_web_path;
 						$new_image_data['filename'] = $filename;

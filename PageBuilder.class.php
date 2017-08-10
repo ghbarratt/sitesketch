@@ -64,7 +64,7 @@
 			global $site_alias;
 			global $site_title;
 			global $site_data;
-
+			global $site_stylesheets;
 			
 			if($alias) $this->alias = $alias;
 			if(empty($this->site_alias))
@@ -100,7 +100,7 @@
 			if($replacements && is_array($replacements)) $this->replacements = $replacements;
 			
 			$this->scripts = false;
-			$this->stylesheets = false;
+			$this->stylesheets = $site_stylesheets;
 			$this->templates = array();
 			if($type) $this->setType($type);
 			else $this->type = false;

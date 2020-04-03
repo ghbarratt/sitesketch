@@ -4,7 +4,7 @@
 class DatabaseSessionManager
 {
 
-	private static $db;
+	private static $dbh;
 	private static $session_code;
 	private static $sync_real_session;
 	private static $data;
@@ -12,16 +12,14 @@ class DatabaseSessionManager
 	private static $table_name = 'session';
 
 
-	public function __construct($session_code=false, $sync_real_session=true)
+	public function __construct($dbh, $session_code=false, $sync_real_session=true)
 	{
-
-		global $db;
 
 		self::$sync_real_session = $sync_real_session;
 
-		if(!isset(self::$db) || !is_object(self::$db))
+		if(!isset(self::$dbh) || !is_object(self::$dbh))
 		{
-			if(isset($db)) self::$db = $db;		
+			if(isset($dbh)) self::$dbh = $dbh;		
 			else 
 			{
 				self::$errors[] = 'Database object is not set';
@@ -47,32 +45,33 @@ class DatabaseSessionManager
 	}// construct
 
 
-	public static function getSessionCode($session_id=null, $db_in=null)
+	public static function getSessionCode($session_id=null, $dbh_in=null)
 	{
 		
-		global $db;
-
-		if(!$db_in)
+		if(!$dbh_in)
 		{
-			if(isset(self::$db)) $db_in = self::$db;
-			else if(isset($db)) $db_in = $db;
+			if(isset(self::$dbh)) $dbh_in = self::$dbh;
 		}
 		if(!empty($session_id) && is_numeric($session_id))
 		{
 			$sql = "SELECT code FROM ".self::$table_name." WHERE id = ".(int)$session_id;
-			$dbr = $db_in->query($sql);
-			if(PEAR::isError($dbr))
+			try {
+				$sth = $dbh_in->prepare($sql);
+				$sth->execute();
+				$result = $sth->fetch();
+				return $result['code'];
+			}
+			catch (PDOException $e)
 			{
-				self::$errors[] = $dbr->getMessage();
+				self::$errors[] = $e->getMessage();
 				return false;
 			}
-			else return $dbr->fetchOne();
 		}
 		else return self::$session_code;
 	}// getSessionCode
 
 
-	public function setSessionCode($session_code=false)
+	public static function setSessionCode($session_code=false)
 	{
 
 		if(self::$sync_real_session) 
@@ -95,15 +94,12 @@ class DatabaseSessionManager
 	}// setSessionCode
 
 
-	public function sessionExistsWithCode($session_code=false, $db_in=false)
+	public static function sessionExistsWithCode($session_code=false, $dbh_in=false)
 	{
 
-		global $db;
-
-		if(!$db_in)
+		if(!$dbh_in)
 		{
-			if(isset(self::$db)) $db_in = self::$db;
-			else if(isset($db)) $db_in = $db;
+			if(isset(self::$dbh)) $dbh_in = self::$dbh;
 		}
 
 		if(!$session_code && isset(self::$session_code) && self::$session_code) $session_code = self::$session_code;
@@ -112,14 +108,17 @@ class DatabaseSessionManager
 		"	
 			SELECT code FROM ".self::$table_name." WHERE code = '".$session_code."'
 		";
-
-		$dbr = $db_in->query($sql);
-    if(PEAR::isError($dbr))
+		try {
+			$sth = $dbh_in->prepare($sql);
+			$sth->execute();
+			$result = $sth->fetch();
+			return $result['code'];
+		} 
+		catch (PDOException $e)
 		{
-			self::$errors[] = $dbr->getMessage();
+			self::$errors[] = $e->getMessage();
 			return false;
-    }
-		else return $dbr->fetchOne();
+		}
 
 	}// sessionExistsWithCode
 
@@ -138,12 +137,9 @@ class DatabaseSessionManager
 		(
 			!$force_query && $session_code==self::$session_code && isset(self::$data) && is_array(self::$data)&& count(self::$data)) 
 		{
-			//echo 'DEBUG reusing data because force is '.$force_query.'<br/>';
 			return self::$data;
 		}
 		//echo 'DEBUG force: '.$force_query."<br/>\n";
-
-
 		//echo 'DEBUG Querying database for data with session_code: '.$session_code.' when self: '.self::$session_code.'<br/>';
 
 		$sql =
@@ -153,21 +149,17 @@ class DatabaseSessionManager
 			WHERE code = '".$session_code."'
 		";
 
-		//echo 'DEBUG db session data sql: '.$sql."\n";
-
-		$dbr = self::$db->query($sql);
-    if(PEAR::isError($dbr))
+		try {
+			$sth = self::$dbh->prepare($sql);
+			$sth->execute();
+			$result = $sth->fetch();
+			$data_string = $result['data'];
+		} 
+		catch (PDOException $e)
 		{
-			self::$errors[] = $dbr->getMessage();
+			self::$errors[] = $e->getMessage();
 			return false;
-    }
-
-		$data_string = $dbr->fetchOne();
-		
-		//echo 'DEBUG data_string: '.$data_string."<br/>\n";
-		//echo 'DEBUG data <pre>';
-		//print_r(unserialize($data_string));
-		//echo '</pre>';
+		}
 
 		$data = unserialize($data_string);
 
@@ -176,10 +168,6 @@ class DatabaseSessionManager
 			if(is_array($data)) $data = array_merge($_SESSION, $data);
 			else $data = $_SESSION;
 		}
-
-		//echo 'DEBUG data <pre>';
-		//print_r($data);
-		//echo '</pre>';
 
 		if($session_code==self::$session_code) self::$data = $data;
 		$data['session_code'] = $session_code;
@@ -205,18 +193,20 @@ class DatabaseSessionManager
 	public function remove($key, $write_to_database=true)
 	{
 
-		//echo 'DEBUG Attempting to remove: '.$key.' db: '.$write_to_database."<br/>\n";
-
 		unset(self::$data[$key]);
 		
-		$sql = 'SELECT id FROM '.self::$table_name." WHERE code = ".self::$db->quote(self::$session_code);
-		$dbr = self::$db->query($sql);
-    if(PEAR::isError($dbr))
+		$sql = 'SELECT id FROM '.self::$table_name." WHERE code = ".self::$dbh->quote(self::$session_code);
+		try {
+			$sth = self::$dbh->prepare($sql);
+			$sth->execute();
+			$result = $sth->fetch();	
+			$session_id = $result['id'];
+		}
+		catch (PDOException $e)
 		{
-			self::$errors[] = $dbr->getMessage();
+			self::$errors[] = $e->getMessage();
 			return false;
-    }
-		else $session_id = $dbr->fetchOne();	
+		}
 
 
 		$last_ip = $_SERVER['REMOTE_ADDR']; 
@@ -234,23 +224,21 @@ class DatabaseSessionManager
 				"
 					UPDATE ".self::$table_name."
 					SET 
-						data = ".self::$db->quote(serialize(self::$data)).",
+						data = ".self::$dbh->quote(serialize(self::$data)).",
 						updated = NOW(),
-						last_ip = ".self::$db->quote($last_ip)."
-					WHERE id = ".self::$db->quote($session_id)."
+						last_ip = ".self::$dbh->quote($last_ip)."
+					WHERE id = ".self::$dbh->quote($session_id)."
 				";
-		
-				$dbr = self::$db->query($sql);
-				
-				//echo 'DEBUG Ran query: '.$sql."<br/>\n";
-
-    		if(PEAR::isError($dbr))
+				try {
+					$sth = self::$dbh->prepare($sql);
+					$sth->execute();
+				} 
+				catch (PDOException $e)
 				{
-					self::$errors[] = $dbr->getMessage().' - SQL: '.$sql;
-					//echo 'DEBUG Made it this far query: '.$sql.' but had error: '.$dbr->getMessage()."<br/>\n";
+					self::$errors[] = $e->getMessage().' - SQL: '.$sql;
 					return false;
-    		}
-				else return true;	
+    				}
+				return true;	
 			}
 		}
 		return false;
@@ -258,36 +246,40 @@ class DatabaseSessionManager
 	}// remove
 
 
-	public function deleteSessionFromDatabase($session_id, $db_in=null)
+	public function deleteSessionFromDatabase($session_id, $dbh_in=null)
 	{
 
-		global $db;
-
-		if(!$db_in)
+		if(!$dbh_in)
 		{
-			if(isset(self::$db)) $db_in = self::$db;
-			else if(isset($db)) $db_in = $db;
+			if(isset(self::$dbh)) $dbh_in = self::$dbh;
 		}
 
 		$sql = 'SELECT id FROM '.self::$table_name.' WHERE id = '.(int)$session_id;
-		$dbr = $db_in->query($sql);
-		if(PEAR::isError($dbr))
+		try {
+			$sth = $dbh_in->prepare($sql);
+			$sth->execute();
+			$result = $sth->fetch();	
+			$found_id = $result['id'];
+		}
+		catch (PDOException $e)
 		{
-			self::$errors[] = $dbr->getMessage();
+			self::$errors[] = $e->getMessage();
 			return false;
 		}
-		else $found_id = $dbr->fetchOne();	
 
 		if($session_id==$found_id)
 		{
 			$sql = 'DELETE FROM '.self::$table_name.' WHERE id = '.(int)$session_id;
-			$dbr = $db_in->query($sql);
-			if(PEAR::isError($dbr))
+			try {
+				$sth = $dbh_in->prepare($sql);
+				$sth->execute();
+			}
+			catch (PDOException $e)
 			{
-				self::$errors[] = $dbr->getMessage().' - SQL: '.$sql;
+				self::$errors[] = $e->getMessage().' - SQL: '.$sql;
 				return false;
 			}
-			else return true;	
+			return true;	
 		}
 		return false;
 
@@ -299,15 +291,19 @@ class DatabaseSessionManager
 
 		self::$data[$key] = $value;
 
-		$sql = 'SELECT id FROM '.self::$table_name." WHERE code = ".self::$db->quote(self::$session_code);
+		$sql = 'SELECT id FROM '.self::$table_name." WHERE code = ".self::$dbh->quote(self::$session_code);
 
-		$dbr = self::$db->query($sql);
-    if(PEAR::isError($dbr))
+		try {
+			$sth = self::$dbh->prepare($sql);
+			$sth->execute();
+			$result = $sth->fetch();
+			$session_id = $result['id'];
+		}
+		catch (PDOException $e)
 		{
-			self::$errors[] = $dbr->getMessage();
+			self::$errors[] = $e->getMessage();
 			return false;
-    }
-		else $session_id = $dbr->fetchOne();	
+		}
 
 		$last_ip = $_SERVER['REMOTE_ADDR']; 
 
@@ -324,10 +320,10 @@ class DatabaseSessionManager
 				"
 					UPDATE ".self::$table_name."
 					SET 
-						data = ".self::$db->quote(serialize(self::$data)).",
+						data = ".self::$dbh->quote(serialize(self::$data)).",
 						updated = NOW(),
-						last_ip = ".self::$db->quote($last_ip)."
-					WHERE id = ".self::$db->quote($session_id)."
+						last_ip = ".self::$dbh->quote($last_ip)."
+					WHERE id = ".self::$dbh->quote($session_id)."
 				";
 			}
 			else // no match
@@ -337,20 +333,17 @@ class DatabaseSessionManager
 					INSERT INTO ".self::$table_name."
 					(code, data, last_ip, created)
 					VALUES
-					(".self::$db->quote(self::$session_code).", ".self::$db->quote(serialize(self::$data)).', '.self::$db->quote($last_ip).", NOW())
+					(".self::$dbh->quote(self::$session_code).", ".self::$dbh->quote(serialize(self::$data)).', '.self::$dbh->quote($last_ip).", NOW())
 				";
 			}
 
-			$dbr = self::$db->query($sql);
-
-			//echo 'DEBUG set sql<pre>';
-			//print_r($sql);
-			//echo '</pre>';
-	
-
-			if(PEAR::isError($dbr))
+			try {
+				$sth = self::$dbh->prepare($sql);
+				$sth->execute();
+			}
+			catch (PDOException $e)
 			{
-				self::$errors[] = $dbr->getMessage().' - SQL: '.$sql;
+				self::$errors[] = $e->getMessage().' - SQL: '.$sql;
 				return false;
 			}
 		}

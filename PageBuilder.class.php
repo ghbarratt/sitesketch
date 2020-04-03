@@ -170,7 +170,7 @@
 			if(!$this->hasStylesheet('/css/'.$this->type.'.css')) 
 			{
 				if(!is_array($this->stylesheets)) $this->stylesheets = array();
-				//$this->stylesheets = array_merge($this->stylesheets, array(0=>array('href'=>'/css/'.$this->type.'.css')));
+				$this->stylesheets = array_merge($this->stylesheets, array(0=>array('href'=>'/css/'.$this->type.'.css')));
 			}
 
 		}// setType

@@ -387,7 +387,7 @@
 			if(imagejpeg($thumbnail_image, $thumbnail_filepath, $quality))
 			{
 				chmod($thumbnail_filepath, 0664);
-				chgrp($thumbnail_filepath, $this->user_group);
+				@chgrp($thumbnail_filepath, $this->user_group);
 				$result = true;
 			}
 			imagedestroy($thumbnail_image);
@@ -438,7 +438,7 @@
 							//echo 'DEBUG Attempting to set permissions on folder: '.$this->webroot_path.$i['web_path'].'/'.$ts_alias."<br/>\n";
 							$chmod_result = chmod($this->webroot_path.$i['web_path'].'/'.$ts_alias, 0775);
 							if(!$chmod_result) echo 'DEBUG Attempt to set permissions was '.($chmod_result ? '' : 'un').'successful'."<br/>\n";
-							$chgrp_result = chgrp($this->webroot_path.$i['web_path'].'/'.$ts_alias, $this->user_group);
+							$chgrp_result = @chgrp($this->webroot_path.$i['web_path'].'/'.$ts_alias, $this->user_group);
 							if(!$chgrp_result)
 							{
 								echo 'DEBUG Unable to set group to '.$this->user_group."<br/>\n";

@@ -2,9 +2,8 @@
 
 function isValidIP($ip)
 {
-	if(!empty($ip) && ip2long($ip)!=-1)
-	{
-		$reserved_ips = array 
+	if (!empty($ip) && ip2long($ip) != -1) {
+		$reserved_ips = array
 		(
 			array('0.0.0.0','2.255.255.255'),
 			array('10.0.0.0','10.255.255.255'),
@@ -15,77 +14,87 @@ function isValidIP($ip)
 			array('192.168.0.0','192.168.255.255'),
 			array('255.255.255.0','255.255.255.255')
 		);
-		foreach($reserved_ips as $r) 
-		{
+		foreach ($reserved_ips as $r) {
 			$min = ip2long($r[0]);
 			$max = ip2long($r[1]);
-			if((ip2long($ip)>=$min) && (ip2long($ip)<=$max)) return false;
+			if ((ip2long($ip) >= $min) && (ip2long($ip) <= $max)) {
+				return false;
+			}
 		}
 		return true;
+	} else {
+		return false;
 	}
-	else return false;
-}// isValidIP
+}
 
 
-function getIP() 
+function getIP()
 {
- 
-	if(!empty($_SERVER['HTTP_CLIENT_IP']) && isValidIP($_SERVER['HTTP_CLIENT_IP'])) return $_SERVER["HTTP_CLIENT_IP"];
 
-	if(!empty($_SERVER['HTTP_X_FORWARDED_FOR']))
-	{
-		foreach(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']) as $ip)
-		{
-	 		if(isValidIP(trim($ip))) return $ip;
+	if (!empty($_SERVER['HTTP_CLIENT_IP']) && isValidIP($_SERVER['HTTP_CLIENT_IP'])) {
+		return $_SERVER["HTTP_CLIENT_IP"];
+	}
+
+	if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+		foreach (explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']) as $ip) {
+			if (isValidIP(trim($ip))) {
+				return $ip;
+			}
 		}
-	}	
+	}
 
-	if(!empty($_SERVER['HTTP_X_FORWARDED']) && isValidIP($_SERVER['HTTP_X_FORWARDED'])) return $_SERVER['HTTP_X_FORWARDED'];
-	elseif (!empty($_SERVER['HTTP_FORWARDED_FOR']) && isValidIP($_SERVER['HTTP_FORWARDED_FOR'])) return $_SERVER['HTTP_FORWARDED_FOR'];
-	elseif (!empty($_SERVER['HTTP_FORWARDED']) && isValidIP($_SERVER['HTTP_FORWARDED'])) return $_SERVER['HTTP_FORWARDED'];
-	elseif (!empty($_SERVER['HTTP_X_FORWARDED']) && isValidIP($_SERVER['HTTP_X_FORWARDED'])) return $_SERVER['HTTP_X_FORWARDED'];
-	else return $_SERVER['REMOTE_ADDR'];
-	
-}// getIP
+	if (!empty($_SERVER['HTTP_X_FORWARDED']) && isValidIP($_SERVER['HTTP_X_FORWARDED'])) {
+		return $_SERVER['HTTP_X_FORWARDED'];
+	} elseif (!empty($_SERVER['HTTP_FORWARDED_FOR']) && isValidIP($_SERVER['HTTP_FORWARDED_FOR'])) {
+		return $_SERVER['HTTP_FORWARDED_FOR'];
+	} elseif (!empty($_SERVER['HTTP_FORWARDED']) && isValidIP($_SERVER['HTTP_FORWARDED'])) {
+		return $_SERVER['HTTP_FORWARDED'];
+	} elseif (!empty($_SERVER['HTTP_X_FORWARDED']) && isValidIP($_SERVER['HTTP_X_FORWARDED'])) {
+		return $_SERVER['HTTP_X_FORWARDED'];
+	} else {
+		return $_SERVER['REMOTE_ADDR'];
+	}
+}
 
 
 function forceHTTPS()
 {
-	if(isset($_SERVER))
-	{
-		if(!isset($_SERVER['HTTPS']) || strtolower($_SERVER['HTTPS'])!='on')
-		{
-			header('Location: https://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);
+	if (isset($_SERVER)) {
+		if (!isset($_SERVER['HTTPS']) || strtolower($_SERVER['HTTPS']) != 'on') {
+			header('Location: https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 			exit;
 		}
 	}
-}// forceHTTPS
+}
 
 
 function getPageAliasUsingURL()
 {
-	$url = $_SERVER['SCRIPT_NAME'] ? $_SERVER['SCRIPT_NAME'] : $_SERVER['PHP_SELF'];	
+	$url = $_SERVER['SCRIPT_NAME'] ? $_SERVER['SCRIPT_NAME'] : $_SERVER['PHP_SELF'];
 	$alias = str_replace('index.php', '', $url);
 	// Remove first /
-	while(substr($alias, 0, 1)=='/') $alias = substr($alias, 1);
+	while (substr($alias, 0, 1) == '/') {
+		$alias = substr($alias, 1);
+	}
 	// Remove lasst /
-	while(substr($alias, strlen($alias)-1, 1)=='/') $alias = substr($alias, 0, strlen($alias)-1);
+	while (substr($alias, strlen($alias) - 1, 1) == '/') {
+		$alias = substr($alias, 0, strlen($alias) - 1);
+	}
 	// Just take what comes after the LAST /
-	if(strpos($alias, '/')!==false) $alias = substr($alias, strrpos($alias, '/')+1);
+	if (strpos($alias, '/') !== false) {
+		$alias = substr($alias, strrpos($alias, '/') + 1);
+	}
 	return $alias;
-}// getPageAliasUsingURL
+}
 
 
-function isEmailValid($email) 
+function isEmailValid($email)
 {
-	if(preg_match('/^([a-zA-Z0-9])+([a-zA-Z0-9\._-]).*@([a-zA-Z0-9_-])+([a-zA-Z0-9\._-]+)+$/', $email))
-	{
+	if (preg_match('/^([a-zA-Z0-9])+([a-zA-Z0-9\._-]).*@([a-zA-Z0-9_-])+([a-zA-Z0-9\._-]+)+$/', $email)) {
 		list($username, $domain) = split('@', $email);
-		if(!checkdnsrr($domain,'MX')) return false;
+		if (!checkdnsrr($domain, 'MX')) {
+			return false;
+		}
 	}
 	return true;
-}// isEmailValid
-
-
-
-
+}
